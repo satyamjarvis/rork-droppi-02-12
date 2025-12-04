@@ -935,6 +935,13 @@ export const supabaseStore = {
     }
 
     const currentDelivery = current as unknown as DbDelivery;
+    
+    if (currentDelivery.courier_id === payload.courierId && currentDelivery.status === "taken") {
+      console.log("[SUPABASE] Courier already owns this delivery, returning existing delivery", payload.deliveryId, payload.courierId);
+      const delivery = dbDeliveryToDelivery(currentDelivery);
+      return delivery;
+    }
+    
     if (currentDelivery.status !== "waiting") {
       throw new Error("משלוח זה כבר נלקח");
     }
