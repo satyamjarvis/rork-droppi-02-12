@@ -229,8 +229,11 @@ export const database = {
         .order("created_at", { ascending: false });
 
       if (error) {
-        console.error("[DATABASE] Users list error:", error);
-        throw new Error("שגיאה בטעינת משתמשים");
+        console.error("[DATABASE] Users list error:", JSON.stringify(error, null, 2));
+        console.error("[DATABASE] Error message:", error.message);
+        console.error("[DATABASE] Error details:", error.details);
+        console.error("[DATABASE] Error hint:", error.hint);
+        throw new Error("שגיאה בטעינת משתמשים: " + error.message);
       }
 
       console.log("[DATABASE] Users fetched:", users?.length || 0);
