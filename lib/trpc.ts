@@ -39,9 +39,11 @@ const createFetchWithTimeout = () => {
       console.log(`[TRPC] Response status:`, response.status);
       console.log(`[TRPC] Response headers:`, Object.fromEntries(response.headers.entries()));
       
-      const clonedResponse = response.clone();
-      const text = await clonedResponse.text();
-      console.log(`[TRPC] Response body (first 500 chars):`, text.substring(0, 500));
+      if (!response.ok) {
+        const clonedResponse = response.clone();
+        const text = await clonedResponse.text();
+        console.log(`[TRPC] Error response body:`, text);
+      }
       
       return response;
     } catch (error) {
