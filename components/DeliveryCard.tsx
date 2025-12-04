@@ -428,7 +428,7 @@ export function DeliveryCard({
         </View>
       </View>
 
-      {delivery.distanceKm ? (
+      {delivery.distanceKm !== null && delivery.distanceKm !== undefined ? (
         <View style={styles.row}>
           <Navigation size={18} color={Colors.light.tintDark} />
           <View style={styles.rowContent}>

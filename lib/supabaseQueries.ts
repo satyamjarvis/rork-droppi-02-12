@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { Delivery, DeliveryStatus, User, UserRole } from "@/types/models";
+import { getDistanceFromAddresses } from "@/utils/distanceCalculator";
 
 type DbUser = {
   id: string;
@@ -200,6 +201,7 @@ export async function createDelivery(params: {
   console.log("[SUPABASE] Creating delivery");
 
   const deliveryId = `delivery-${Date.now()}-${Math.round(Math.random() * 100000)}`;
+  const distanceKm = getDistanceFromAddresses(params.pickupAddress, params.dropoffAddress);
 
   const { data, error } = await supabase
     .from("deliveries")
@@ -212,6 +214,7 @@ export async function createDelivery(params: {
       customer_name: params.customerName,
       customer_phone: params.customerPhone,
       preparation_time_minutes: params.preparationTimeMinutes,
+      distance_km: distanceKm,
       status: "waiting",
       business_confirmed: false,
       business_ready: false,
