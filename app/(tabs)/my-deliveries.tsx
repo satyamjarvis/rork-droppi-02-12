@@ -569,7 +569,7 @@ export default function MyDeliveriesScreen() {
             
             const showCourierPhone = user?.role === "business" && isCourierInfoAvailable && courier?.phone;
             const showCourierName = user?.role === "business" && isCourierInfoAvailable && courier?.name;
-            const showCustomerInfoForBusiness = user?.role === "business" && (delivery.status === "taken" || delivery.status === "completed");
+            const showCustomerInfoForBusiness = user?.role === "business";
             return (
               <DeliveryCard
                 key={delivery.id}
@@ -578,8 +578,8 @@ export default function MyDeliveriesScreen() {
                 businessName={business?.name}
                 courierName={showCourierName ? courier?.name : undefined}
                 courierPhone={showCourierPhone ? courier?.phone : undefined}
-                customerName={showCustomerInfoForBusiness ? delivery.customerName : delivery.customerName}
-                customerPhone={showCustomerInfoForBusiness ? delivery.customerPhone : delivery.customerPhone}
+                customerName={delivery.customerName}
+                customerPhone={delivery.customerPhone}
                 showCustomerInfoForBusiness={showCustomerInfoForBusiness}
                 primaryActionLabel={
                   canComplete
