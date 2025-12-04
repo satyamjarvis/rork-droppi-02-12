@@ -49,6 +49,8 @@ type DbDelivery = {
   customer_phone: string;
   payment: number | null;
   distance_km: number | null;
+  business?: DbUser | null;
+  courier?: DbUser | null;
 };
 
 function dbUserToUser(dbUser: DbUser): User {
@@ -135,7 +137,15 @@ export async function getUsers(): Promise<User[]> {
     return [];
   }
 
-  return (data || []).map((row) => dbUserToUser(row as unknown as DbUser));
+  console.log("[SUPABASE] Fetched users count:", data?.length || 0);
+  if (data && data.length > 0) {
+    console.log("[SUPABASE] Sample user IDs:", data.slice(0, 3).map(u => ({ id: u.id, name: u.name, role: u.role })));
+  }
+
+  const users = (data || []).map((row) => dbUserToUser(row as unknown as DbUser));
+  console.log("[SUPABASE] Mapped users count:", users.length);
+  
+  return users;
 }
 
 export async function getDeliveries(): Promise<Delivery[]> {
@@ -144,11 +154,23 @@ export async function getDeliveries(): Promise<Delivery[]> {
     return [];
   }
 
-  console.log("[SUPABASE] Fetching deliveries");
+  console.log("[SUPABASE] Fetching deliveries with joins");
 
   const { data, error} = await supabase
     .from("deliveries")
-    .select("*")
+    .select(`
+      *,
+      business:business_id(
+        *,
+        courier_profiles(*),
+        business_profiles(*)
+      ),
+      courier:courier_id(
+        *,
+        courier_profiles(*),
+        business_profiles(*)
+      )
+    `)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -156,7 +178,12 @@ export async function getDeliveries(): Promise<Delivery[]> {
     return [];
   }
 
-  return (data || []).map((row) => dbDeliveryToDelivery(row as DbDelivery));
+  console.log("[SUPABASE] Fetched deliveries count:", data?.length || 0);
+  if (data && data.length > 0) {
+    console.log("[SUPABASE] Sample delivery data:", JSON.stringify(data[0], null, 2).substring(0, 500));
+  }
+
+  return (data || []).map((row) => dbDeliveryToDelivery(row as unknown as DbDelivery));
 }
 
 export async function login(phone: string, password: string): Promise<User> {
@@ -385,19 +412,25 @@ export async function updateAvailability(params: {
     throw new Error("Supabase not configured");
   }
 
-  console.log("[SUPABASE] Updating courier availability", params.courierId, params.isAvailable);
+  console.log("[SUPABASE] Updating courier availability", {
+    courierId: params.courierId,
+    isAvailable: params.isAvailable
+  });
 
-  const { error } = await supabase
+  const { data: updateResult, error } = await supabase
     .from("courier_profiles")
     .update({
       is_available: params.isAvailable,
     })
-    .eq("user_id", params.courierId);
+    .eq("user_id", params.courierId)
+    .select();
 
   if (error) {
     console.log("[SUPABASE] Update availability failed:", error);
     throw new Error("עדכון הזמינות נכשל");
   }
+
+  console.log("[SUPABASE] Update availability result:", updateResult);
 
   const { data: userData, error: userError } = await supabase
     .from("users")
@@ -413,6 +446,12 @@ export async function updateAvailability(params: {
     console.log("[SUPABASE] Fetch updated user failed:", userError);
     throw new Error("עדכון הזמינות נכשל");
   }
+
+  console.log("[SUPABASE] Updated user data:", {
+    id: userData.id,
+    name: userData.name,
+    courierProfile: userData.courier_profiles
+  });
 
   return dbUserToUser(userData as unknown as DbUser);
 }
