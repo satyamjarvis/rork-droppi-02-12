@@ -574,7 +574,7 @@ export default function MyDeliveriesScreen() {
               <DeliveryCard
                 key={delivery.id}
                 delivery={delivery}
-                headline={user?.role === "business" ? "משלוח מהעסק" : "משלוח מהעסק"}
+                headline={user?.role === "business" ? "משלוח מהעסק" : "משלוח שלי"}
                 businessName={business?.name}
                 courierName={showCourierName ? courier?.name : undefined}
                 courierPhone={showCourierPhone ? courier?.phone : undefined}
@@ -606,6 +606,7 @@ export default function MyDeliveriesScreen() {
                 disabled={loadingAction}
                 showNavigationButtons={user?.role === "courier"}
                 showCustomerInfo={user?.role === "courier"}
+                showNotes={user?.role === "courier"}
                 testID={`delivery-${delivery.id}`}
               />
             );
