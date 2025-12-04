@@ -17,7 +17,6 @@ import { MapPin, ChevronDown, UserCheck, CreditCard, Banknote } from "lucide-rea
 import * as Haptics from "expo-haptics";
 import { Audio } from "expo-av";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { database } from "@/lib/database";
 
 import Colors from "../../constants/colors";
 import { useDelivery } from "../../providers/DeliveryProvider";
@@ -130,7 +129,7 @@ export default function CreateDeliveryScreen() {
   const isBusiness = user?.role === "business";
   const isLoading = createDeliveryMutationStatus === "pending";
 
-  const customerLookupQuery = useQuery({
+  const customerLookupQuery = useQuery<Customer | null>({
     queryKey: ["customer", lookupPhone],
     queryFn: async () => {
       console.log("[CUSTOMER] Customer lookup (functionality not yet implemented in database layer)");
@@ -219,9 +218,10 @@ export default function CreateDeliveryScreen() {
   }, [customerLookupQuery.data, customerLookupQuery.isFetching, lookupPhone, applyCustomerData]);
 
   useEffect(() => {
+    const timer = phoneLookupTimerRef.current;
     return () => {
-      if (phoneLookupTimerRef.current) {
-        clearTimeout(phoneLookupTimerRef.current);
+      if (timer) {
+        clearTimeout(timer);
       }
     };
   }, []);
