@@ -25,7 +25,10 @@ const getBaseUrl = () => {
 const createFetchWithTimeout = () => {
   return async (url: RequestInfo | URL, options?: RequestInit): Promise<Response> => {
     const timeoutMs = 30000;
-    console.log(`[TRPC] Fetch request (timeout: ${timeoutMs}ms)`);
+    const urlString = typeof url === 'string' ? url : url.toString();
+    console.log(`[TRPC] Fetch request to: ${urlString}`);
+    console.log(`[TRPC] Method: ${options?.method || 'GET'}`);
+    console.log(`[TRPC] Headers:`, options?.headers);
     
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -36,11 +39,20 @@ const createFetchWithTimeout = () => {
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
+      
+      console.log(`[TRPC] Response status: ${response.status}`);
+      console.log(`[TRPC] Response headers:`, Object.fromEntries(response.headers.entries()));
+      
+      if (!response.ok) {
+        const text = await response.clone().text();
+        console.error(`[TRPC] Error response body:`, text);
+      }
+      
       return response;
     } catch (error) {
       clearTimeout(timeoutId);
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.log(`[TRPC] Fetch error:`, errorMessage);
+      console.error(`[TRPC] Fetch error:`, errorMessage);
       
       if (errorMessage.toLowerCase().includes("abort")) {
         throw new Error("Request timeout");
