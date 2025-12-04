@@ -130,12 +130,18 @@ export default function CreateDeliveryScreen() {
   const isLoading = createDeliveryMutationStatus === "pending";
 
   const customerLookupQuery = useQuery<Customer | null>({
-    queryKey: ["customer", lookupPhone],
+    // eslint-disable-next-line @tanstack/query/exhaustive-deps
+    queryKey: ["customer", lookupPhone, user?.id, user?.role],
     queryFn: async () => {
-      console.log("[CUSTOMER] Customer lookup (functionality not yet implemented in database layer)");
-      return null;
+      if (!user || user.role !== "business") {
+        console.log("[CUSTOMER] User is not a business, skipping lookup");
+        return null;
+      }
+      console.log("[CUSTOMER] Looking up customer:", lookupPhone);
+      const { database } = await import("../../lib/database");
+      return database.customers.lookup({ phone: lookupPhone, businessId: user.id });
     },
-    enabled: lookupPhone.replace(/\D/g, "").length >= MIN_PHONE_DIGITS_FOR_LOOKUP,
+    enabled: lookupPhone.replace(/\D/g, "").length >= MIN_PHONE_DIGITS_FOR_LOOKUP && !!user && user.role === "business",
     staleTime: 0,
     gcTime: 0,
   });
@@ -150,8 +156,9 @@ export default function CreateDeliveryScreen() {
       notes: string;
       businessId: string;
     }) => {
-      console.log("[CUSTOMER] Saving customer (functionality not yet implemented in database layer)");
-      return data;
+      console.log("[CUSTOMER] Saving customer:", data.phone);
+      const { database } = await import("../../lib/database");
+      return database.customers.save(data);
     },
   });
 

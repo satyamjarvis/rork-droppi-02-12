@@ -1,6 +1,6 @@
 import { supabase } from "./supabase";
 import { Tables, UpdateTables } from "../types/supabase";
-import { Delivery, User, UserRole, DeliveryStatus } from "../types/models";
+import { Delivery, User, UserRole, DeliveryStatus, Customer } from "../types/models";
 
 console.log("[DATABASE] Database service initialized");
 
@@ -100,6 +100,21 @@ type UpdateDeliveryInput = {
   status?: DeliveryStatus;
   courierId?: string | null;
   managerId: string;
+};
+
+type CustomerLookupInput = {
+  phone: string;
+  businessId: string;
+};
+
+type SaveCustomerInput = {
+  phone: string;
+  name: string;
+  address?: string;
+  city?: string;
+  floor?: string;
+  notes?: string;
+  businessId: string;
 };
 
 const transformDbUserToUser = (
@@ -653,6 +668,123 @@ export const database = {
 
       console.log("[DATABASE] Delivery updated successfully:", updatedDelivery.id);
       return transformDbDeliveryToDelivery(updatedDelivery);
+    },
+  },
+
+  customers: {
+    async lookup(input: CustomerLookupInput): Promise<Customer | null> {
+      console.log("[DATABASE] Looking up customer:", input.phone);
+
+      const { data: customer, error } = await supabase
+        .from("customers")
+        .select("*")
+        .eq("phone", input.phone)
+        .eq("business_id", input.businessId)
+        .maybeSingle();
+
+      if (error) {
+        console.error("[DATABASE] Customer lookup error:", error);
+        return null;
+      }
+
+      if (!customer) {
+        console.log("[DATABASE] Customer not found");
+        return null;
+      }
+
+      console.log("[DATABASE] Customer found:", customer.id);
+      return {
+        id: customer.id,
+        phone: customer.phone,
+        name: customer.name,
+        address: customer.address ?? undefined,
+        city: customer.city ?? undefined,
+        floor: customer.floor ?? undefined,
+        notes: customer.notes ?? undefined,
+        businessId: customer.business_id ?? undefined,
+        createdAt: customer.created_at,
+        updatedAt: customer.updated_at,
+      };
+    },
+
+    async save(input: SaveCustomerInput): Promise<Customer> {
+      console.log("[DATABASE] Saving customer:", input.phone);
+
+      const { data: existingCustomer } = await supabase
+        .from("customers")
+        .select("id")
+        .eq("phone", input.phone)
+        .eq("business_id", input.businessId)
+        .maybeSingle();
+
+      if (existingCustomer) {
+        console.log("[DATABASE] Updating existing customer:", existingCustomer.id);
+        const { data: updatedCustomer, error } = await supabase
+          .from("customers")
+          .update({
+            name: input.name,
+            address: input.address,
+            city: input.city,
+            floor: input.floor,
+            notes: input.notes,
+          })
+          .eq("id", existingCustomer.id)
+          .select()
+          .single();
+
+        if (error || !updatedCustomer) {
+          console.error("[DATABASE] Update customer error:", error);
+          throw new Error("שגיאה בעדכון לקוח");
+        }
+
+        console.log("[DATABASE] Customer updated successfully");
+        return {
+          id: updatedCustomer.id,
+          phone: updatedCustomer.phone,
+          name: updatedCustomer.name,
+          address: updatedCustomer.address ?? undefined,
+          city: updatedCustomer.city ?? undefined,
+          floor: updatedCustomer.floor ?? undefined,
+          notes: updatedCustomer.notes ?? undefined,
+          businessId: updatedCustomer.business_id ?? undefined,
+          createdAt: updatedCustomer.created_at,
+          updatedAt: updatedCustomer.updated_at,
+        };
+      }
+
+      console.log("[DATABASE] Creating new customer");
+      const { data: newCustomer, error } = await supabase
+        .from("customers")
+        .insert({
+          phone: input.phone,
+          name: input.name,
+          address: input.address,
+          city: input.city,
+          floor: input.floor,
+          notes: input.notes,
+          business_id: input.businessId,
+        })
+        .select()
+        .single();
+
+      if (error || !newCustomer) {
+        console.error("[DATABASE] Create customer error:", error);
+        throw new Error("שגיאה ביצירת לקוח");
+      }
+
+      console.log("[DATABASE] Customer created successfully:", newCustomer.id);
+      return {
+        id: newCustomer.id,
+        phone: newCustomer.phone,
+        name: newCustomer.name,
+        address: newCustomer.address ?? undefined,
+        city: newCustomer.city ?? undefined,
+        floor: newCustomer.floor ?? undefined,
+        notes: newCustomer.notes ?? undefined,
+        businessId: newCustomer.business_id ?? undefined,
+        createdAt: newCustomer.created_at,
+        updatedAt: newCustomer.updated_at,
+      };
     },
   },
 
