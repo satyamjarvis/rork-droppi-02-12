@@ -160,7 +160,25 @@ export async function getDeliveries(): Promise<Delivery[]> {
 
   const { data, error} = await supabase
     .from("deliveries")
-    .select("*")
+    .select(`
+      *,
+      business:users!deliveries_business_id_fkey(
+        id,
+        name,
+        phone,
+        email,
+        role,
+        business_profiles(address, email)
+      ),
+      courier:users!deliveries_courier_id_fkey(
+        id,
+        name,
+        phone,
+        email,
+        role,
+        courier_profiles(age, vehicle, email, is_available)
+      )
+    `)
     .order("created_at", { ascending: false });
 
   if (error) {
