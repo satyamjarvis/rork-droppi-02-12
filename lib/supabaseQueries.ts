@@ -199,9 +199,12 @@ export async function createDelivery(params: {
 
   console.log("[SUPABASE] Creating delivery");
 
+  const deliveryId = `delivery-${Date.now()}-${Math.round(Math.random() * 100000)}`;
+
   const { data, error } = await supabase
     .from("deliveries")
     .insert({
+      id: deliveryId,
       business_id: params.businessId,
       pickup_address: params.pickupAddress,
       dropoff_address: params.dropoffAddress,
@@ -209,7 +212,7 @@ export async function createDelivery(params: {
       customer_name: params.customerName,
       customer_phone: params.customerPhone,
       preparation_time_minutes: params.preparationTimeMinutes,
-      status: "pending",
+      status: "waiting",
       business_confirmed: false,
       business_ready: false,
     })
@@ -239,7 +242,7 @@ export async function takeDelivery(params: {
     .from("deliveries")
     .update({
       courier_id: params.courierId,
-      status: "assigned",
+      status: "taken",
       estimated_arrival_minutes: params.estimatedArrivalMinutes,
     })
     .eq("id", params.deliveryId)
@@ -267,7 +270,7 @@ export async function pickupDelivery(params: {
   const { data, error } = await supabase
     .from("deliveries")
     .update({
-      status: "picked_up",
+      status: "taken",
       picked_up_at: new Date().toISOString(),
     })
     .eq("id", params.deliveryId)
@@ -296,7 +299,7 @@ export async function completeDelivery(params: {
   const { data, error } = await supabase
     .from("deliveries")
     .update({
-      status: "delivered",
+      status: "completed",
       completed_at: new Date().toISOString(),
     })
     .eq("id", params.deliveryId)
@@ -327,7 +330,7 @@ export async function confirmDelivery(params: {
     .update({
       business_confirmed: true,
       confirmed_at: new Date().toISOString(),
-      status: "confirmed",
+      status: "taken",
     })
     .eq("id", params.deliveryId)
     .eq("business_id", params.businessId)
