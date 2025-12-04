@@ -569,7 +569,7 @@ export default function MyDeliveriesScreen() {
             
             const showCourierPhone = user?.role === "business" && isCourierInfoAvailable && courier?.phone;
             const showCourierName = user?.role === "business" && isCourierInfoAvailable && courier?.name;
-            const showCustomerInfoForBusiness = user?.role === "business";
+            const showCustomerInfoForBusiness = user?.role === "business" && (delivery.status === "taken" || delivery.status === "completed");
             return (
               <DeliveryCard
                 key={delivery.id}
@@ -578,8 +578,8 @@ export default function MyDeliveriesScreen() {
                 businessName={business?.name}
                 courierName={showCourierName ? courier?.name : undefined}
                 courierPhone={showCourierPhone ? courier?.phone : undefined}
-                customerName={delivery.customerName}
-                customerPhone={delivery.customerPhone}
+                customerName={showCustomerInfoForBusiness ? delivery.customerName : undefined}
+                customerPhone={showCustomerInfoForBusiness ? delivery.customerPhone : undefined}
                 showCustomerInfoForBusiness={showCustomerInfoForBusiness}
                 primaryActionLabel={
                   canComplete
@@ -606,7 +606,6 @@ export default function MyDeliveriesScreen() {
                 disabled={loadingAction}
                 showNavigationButtons={user?.role === "courier"}
                 showCustomerInfo={user?.role === "courier"}
-                showNotes={true}
                 testID={`delivery-${delivery.id}`}
               />
             );

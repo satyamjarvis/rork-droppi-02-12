@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
+import * as Haptics from "expo-haptics";
 import { Audio } from "expo-av";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-
+import { trpc } from "../lib/trpc";
 import { NewDeliveryFullScreenPopup } from "./NewDeliveryFullScreenPopup";
 import { CourierAssignedBottomSheet } from "./CourierAssignedBottomSheet";
 import { TimeSelectionModal } from "./TimeSelectionModal";
 import { useDelivery } from "../providers/DeliveryProvider";
 import { Delivery } from "../types/models";
+import { DeliveryEvent } from "../backend/services/eventEmitter";
 
 export function RealtimeDeliveryNotifications() {
   const router = useRouter();
@@ -67,7 +69,6 @@ export function RealtimeDeliveryNotifications() {
     };
   }, [user, soundRef]);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const playNotificationSound = useCallback(async () => {
     try {
       if (soundRef.current) {
@@ -79,16 +80,94 @@ export function RealtimeDeliveryNotifications() {
     }
   }, [soundRef]);
 
-  useEffect(() => {
-    if (!user) return;
-    
-    console.log("[REALTIME] Realtime subscriptions would be set up here");
-    console.log("[REALTIME] Using Supabase realtime instead of tRPC subscriptions");
-    
-    return () => {
-      console.log("[REALTIME] Cleanup realtime subscriptions");
-    };
-  }, [user]);
+  trpc.events.subscribe.useSubscription(undefined, {
+    enabled: !!user,
+    onData: (event) => {
+      console.log("[REALTIME] Received event:", event.type);
+
+      if (event.type === "USER_CREATED" || event.type === "USER_UPDATED") {
+        console.log("[REALTIME] User event received, skipping");
+        return;
+      }
+
+      const deliveryEvent = event as DeliveryEvent;
+      console.log("[REALTIME] Delivery event:", deliveryEvent.delivery.id);
+
+      if (deliveryEvent.type === "DELIVERY_CREATED" && user?.role === "courier") {
+        const isAvailable = user.courierProfile?.isAvailable ?? false;
+        if (!isAvailable) {
+          console.log("[REALTIME] Courier not available, skipping notification");
+          return;
+        }
+
+        if (dismissedDeliveryIds.has(deliveryEvent.delivery.id)) {
+          console.log("[REALTIME] Delivery already dismissed, skipping");
+          return;
+        }
+
+        console.log("[REALTIME] Showing new delivery modal for courier");
+        setNewDeliveryForCourier(deliveryEvent.delivery);
+        setIsNewDeliveryVisible(true);
+
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch((error) => {
+            console.log("[REALTIME] Haptics failed", error);
+          });
+        }
+
+        void playNotificationSound();
+      }
+
+      if (deliveryEvent.type === "DELIVERY_ASSIGNED" && user?.role === "business") {
+        if (deliveryEvent.delivery.businessId !== user.id) {
+          return;
+        }
+
+        if (confirmedBusinessDeliveryIds.has(deliveryEvent.delivery.id)) {
+          console.log("[REALTIME] Business delivery already confirmed, skipping");
+          return;
+        }
+
+        console.log("[REALTIME] Showing assigned delivery modal for business");
+        setAssignedDeliveryForBusiness(deliveryEvent.delivery);
+        setIsAssignedDeliveryVisible(true);
+
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch((error) => {
+            console.log("[REALTIME] Haptics failed", error);
+          });
+        }
+
+        void playNotificationSound();
+      }
+
+      if (deliveryEvent.type === "DELIVERY_ASSIGNED" && user?.role === "courier") {
+        const assignedCourierId = deliveryEvent.delivery.courierId;
+        const isSameDelivery = newDeliveryForCourier?.id === deliveryEvent.delivery.id;
+        if (!isSameDelivery) {
+          return;
+        }
+        if (assignedCourierId && assignedCourierId === user.id) {
+          console.log("[REALTIME] Delivery assigned to current courier, ignoring dismissal");
+          return;
+        }
+        console.log("[REALTIME] Delivery taken by another courier, dismissing popup");
+        dismissDelivery(deliveryEvent.delivery.id);
+        setIsNewDeliveryVisible(false);
+        setIsTimeModalVisible(false);
+        setNewDeliveryForCourier(null);
+        setTakeoverNotice("המשלוח נלקח על ידי שליח אחר");
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch((error) => {
+            console.log("[REALTIME] Takeover haptics failed", error);
+          });
+        }
+      }
+    },
+    onError: (error) => {
+      console.log("[REALTIME] Subscription error:", error);
+    },
+  });
 
   const handleCourierAccept = useCallback(() => {
     if (!newDeliveryForCourier || !user || user.role !== "courier") {

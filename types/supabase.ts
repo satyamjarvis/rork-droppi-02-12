@@ -173,44 +173,6 @@ export interface Database {
           distance_km?: number | null;
         };
       };
-      customers: {
-        Row: {
-          id: string;
-          phone: string;
-          name: string;
-          address: string | null;
-          city: string | null;
-          floor: string | null;
-          notes: string | null;
-          business_id: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          phone: string;
-          name: string;
-          address?: string | null;
-          city?: string | null;
-          floor?: string | null;
-          notes?: string | null;
-          business_id?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          phone?: string;
-          name?: string;
-          address?: string | null;
-          city?: string | null;
-          floor?: string | null;
-          notes?: string | null;
-          business_id?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-      };
     };
     Views: {
       [_ in never]: never;

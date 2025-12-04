@@ -451,16 +451,21 @@ export const supabaseStore = {
           controller.abort();
         }, timeoutMs);
 
-        const { data: usersData, error: usersError } = await supabase
+        const queryPromise = supabase
           .from("users")
-          .select("*")
+          .select(`
+            *,
+            courier_profiles:courier_profiles!courier_profiles_user_id_fkey(*),
+            business_profiles:business_profiles!business_profiles_user_id_fkey(*)
+          `)
           .abortSignal(controller.signal);
 
+        const { data: users, error } = await queryPromise;
         clearTimeout(timeoutId);
 
-        if (usersError) {
-          console.log(`[SUPABASE] Login attempt ${attempt} database error:`, usersError.message, usersError.code);
-          lastError = new Error(usersError.message || "שגיאה בהתחברות");
+        if (error) {
+          console.log(`[SUPABASE] Login attempt ${attempt} database error:`, error.message, error.code);
+          lastError = new Error(error.message || "שגיאה בהתחברות");
           
           if (attempt < maxRetries) {
             const delay = attempt * 1000;
@@ -471,16 +476,16 @@ export const supabaseStore = {
           throw lastError;
         }
 
-        if (!usersData || usersData.length === 0) {
+        if (!users || users.length === 0) {
           console.log("[SUPABASE] No users found in database");
           throw new Error("פרטי הכניסה שגויים");
         }
 
-        console.log(`[SUPABASE] Fetched ${usersData.length} users, searching for match...`);
+        console.log(`[SUPABASE] Fetched ${users.length} users, searching for match...`);
         const comparisonKey = createPhoneComparisonKey(normalizedPhone);
 
-        const foundUserRecord = usersData.find((candidate: unknown) => {
-          const c = candidate as Omit<DbUser, 'courier_profiles' | 'business_profiles'>;
+        const foundUser = users.find((candidate: unknown) => {
+          const c = candidate as DbUser;
           const candidateNormalized = normalizePhoneNumber(c.phone);
           const candidateKey = createPhoneComparisonKey(candidateNormalized || c.phone);
           const phonesMatch =
@@ -489,54 +494,12 @@ export const supabaseStore = {
           return phonesMatch && c.password === password;
         });
 
-        if (!foundUserRecord) {
+        if (!foundUser) {
           console.log("[SUPABASE] No matching user found for credentials");
           throw new Error("פרטי הכניסה שגויים");
         }
 
-        const rawUser = foundUserRecord as Omit<DbUser, 'courier_profiles' | 'business_profiles'>;
-        console.log("[SUPABASE] User found:", rawUser.id, "role:", rawUser.role, "- fetching profile");
-
-        let courierProfile: { age: number; email: string; vehicle: string; is_available: boolean; id_number: string | null; current_latitude: number | null; current_longitude: number | null; location_updated_at: string | null } | null = null;
-        let businessProfile: { address: string; email: string } | null = null;
-
-        if (rawUser.role === "courier") {
-          const { data: cpData, error: cpError } = await supabase
-            .from("courier_profiles")
-            .select("*")
-            .eq("user_id", rawUser.id)
-            .single();
-          
-          if (!cpError && cpData) {
-            courierProfile = cpData as { age: number; email: string; vehicle: string; is_available: boolean; id_number: string | null; current_latitude: number | null; current_longitude: number | null; location_updated_at: string | null };
-            console.log("[SUPABASE] Login - found courier profile for:", rawUser.id);
-          } else {
-            console.log("[SUPABASE] Login - no courier profile found for:", rawUser.id, cpError);
-          }
-        }
-
-        if (rawUser.role === "business") {
-          const { data: bpData, error: bpError } = await supabase
-            .from("business_profiles")
-            .select("*")
-            .eq("user_id", rawUser.id)
-            .single();
-          
-          if (!bpError && bpData) {
-            businessProfile = bpData as { address: string; email: string };
-            console.log("[SUPABASE] Login - found business profile for:", rawUser.id);
-          } else {
-            console.log("[SUPABASE] Login - no business profile found for:", rawUser.id, bpError);
-          }
-        }
-
-        const enrichedUser: DbUser = {
-          ...rawUser,
-          courier_profiles: courierProfile ? [courierProfile] : null,
-          business_profiles: businessProfile ? [businessProfile] : null,
-        };
-
-        const user = dbUserToUser(enrichedUser);
+        const user = dbUserToUser(foundUser as unknown as DbUser);
         console.log("[SUPABASE] Login successful for:", user.id, "on attempt", attempt);
         return user;
 
@@ -972,13 +935,6 @@ export const supabaseStore = {
     }
 
     const currentDelivery = current as unknown as DbDelivery;
-    
-    if (currentDelivery.courier_id === payload.courierId && currentDelivery.status === "taken") {
-      console.log("[SUPABASE] Courier already owns this delivery, returning existing delivery", payload.deliveryId, payload.courierId);
-      const delivery = dbDeliveryToDelivery(currentDelivery);
-      return delivery;
-    }
-    
     if (currentDelivery.status !== "waiting") {
       throw new Error("משלוח זה כבר נלקח");
     }

@@ -9,21 +9,11 @@ const app = new Hono();
 app.use("*", cors());
 
 app.use(
-  "/api/trpc/*",
+  "/trpc/*",
   trpcServer({
+    endpoint: "/api/trpc",
     router: appRouter,
     createContext,
-    endpoint: "/api/trpc",
-    onError(opts) {
-      const { error, type, path, input } = opts;
-      console.error("[TRPC ERROR]", {
-        type,
-        path,
-        code: error.code,
-        message: error.message,
-        input,
-      });
-    },
   })
 );
 

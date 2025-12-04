@@ -16,7 +16,7 @@ import { Feather } from "@expo/vector-icons";
 import { MapPin, ChevronDown, UserCheck, CreditCard, Banknote } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { Audio } from "expo-av";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { trpc } from "@/lib/trpc";
 
 import Colors from "../../constants/colors";
 import { useDelivery } from "../../providers/DeliveryProvider";
@@ -129,38 +129,16 @@ export default function CreateDeliveryScreen() {
   const isBusiness = user?.role === "business";
   const isLoading = createDeliveryMutationStatus === "pending";
 
-  const customerLookupQuery = useQuery<Customer | null>({
-    // eslint-disable-next-line @tanstack/query/exhaustive-deps
-    queryKey: ["customer", lookupPhone, user?.id, user?.role],
-    queryFn: async () => {
-      if (!user || user.role !== "business") {
-        console.log("[CUSTOMER] User is not a business, skipping lookup");
-        return null;
-      }
-      console.log("[CUSTOMER] Looking up customer:", lookupPhone);
-      const { database } = await import("../../lib/database");
-      return database.customers.lookup({ phone: lookupPhone, businessId: user.id });
-    },
-    enabled: lookupPhone.replace(/\D/g, "").length >= MIN_PHONE_DIGITS_FOR_LOOKUP && !!user && user.role === "business",
-    staleTime: 0,
-    gcTime: 0,
-  });
+  const customerLookupQuery = trpc.customers.lookup.useQuery(
+    { phone: lookupPhone },
+    {
+      enabled: lookupPhone.replace(/\D/g, "").length >= MIN_PHONE_DIGITS_FOR_LOOKUP,
+      staleTime: 0,
+      gcTime: 0,
+    }
+  );
 
-  const saveCustomerMutation = useMutation({
-    mutationFn: async (data: {
-      phone: string;
-      name: string;
-      address: string;
-      city: string;
-      floor: string;
-      notes: string;
-      businessId: string;
-    }) => {
-      console.log("[CUSTOMER] Saving customer:", data.phone);
-      const { database } = await import("../../lib/database");
-      return database.customers.save(data);
-    },
-  });
+  const saveCustomerMutation = trpc.customers.save.useMutation();
 
   const handlePhoneChange = useCallback((value: string) => {
     setCustomerPhone(value);
@@ -225,10 +203,9 @@ export default function CreateDeliveryScreen() {
   }, [customerLookupQuery.data, customerLookupQuery.isFetching, lookupPhone, applyCustomerData]);
 
   useEffect(() => {
-    const timer = phoneLookupTimerRef.current;
     return () => {
-      if (timer) {
-        clearTimeout(timer);
+      if (phoneLookupTimerRef.current) {
+        clearTimeout(phoneLookupTimerRef.current);
       }
     };
   }, []);

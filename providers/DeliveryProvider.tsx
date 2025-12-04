@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, createContext, useContext, ReactNode } from "react";
 import { Alert, AppState, AppStateStatus, Platform } from "react-native";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Delivery, DeliveryStatus, User, UserRole } from "../types/models";
-import { database } from "../lib/database";
+import { trpc } from "../lib/trpc";
 import { persistentStorage } from "../utils/persistentStorage";
 import { useSupabaseRealtime } from "@/hooks/useSupabaseRealtime";
 
@@ -152,7 +151,7 @@ const useDeliveryContextValue = (): DeliveryContextValue => {
   const [businessCreationMessage, setBusinessCreationMessage] = useState<string | null>(null);
   const [courierAssignmentMessage, setCourierAssignmentMessage] = useState<string | null>(null);
   const [originalManagerUser, setOriginalManagerUser] = useState<User | null>(null);
-  const queryClient = useQueryClient();
+  const utils = trpc.useUtils();
   const userSnapshotRef = useRef<string>(createStableSignature(null));
   const hydrationCompletedRef = useRef<boolean>(false);
 
@@ -185,9 +184,7 @@ const useDeliveryContextValue = (): DeliveryContextValue => {
     data: usersData,
     isLoading: isUsersLoading,
     refetch: refetchUsers,
-  } = useQuery({
-    queryKey: ["users"],
-    queryFn: database.users.list,
+  } = trpc.users.list.useQuery(undefined, {
     staleTime: 0,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
@@ -199,9 +196,7 @@ const useDeliveryContextValue = (): DeliveryContextValue => {
     data: deliveriesData,
     isLoading: isDeliveriesLoading,
     refetch: refetchDeliveries,
-  } = useQuery({
-    queryKey: ["deliveries"],
-    queryFn: database.deliveries.list,
+  } = trpc.deliveries.list.useQuery(undefined, {
     staleTime: 0,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
@@ -309,8 +304,7 @@ const useDeliveryContextValue = (): DeliveryContextValue => {
   const {
     mutateAsync: loginMutateAsync,
     status: loginStatus,
-  } = useMutation({
-    mutationFn: database.auth.login,
+  } = trpc.auth.login.useMutation({
     onSuccess: (foundUser) => {
       console.log("Login success", foundUser.id);
       applyUserState(foundUser);
@@ -324,17 +318,16 @@ const useDeliveryContextValue = (): DeliveryContextValue => {
   const {
     mutateAsync: createDeliveryMutateAsync,
     status: createDeliveryStatus,
-  } = useMutation({
-    mutationFn: database.deliveries.create,
+  } = trpc.business.createDelivery.useMutation({
     onSuccess: (createdDelivery) => {
       console.log("Delivery created", createdDelivery.id);
-      queryClient.setQueryData(["deliveries"], (current: Delivery[] | undefined) => {
+      utils.deliveries.list.setData(undefined, (current) => {
         if (!current) {
           return [createdDelivery];
         }
         return [createdDelivery, ...current];
       });
-      queryClient.invalidateQueries({ queryKey: ["deliveries"] }).catch((invalidateError) => {
+      utils.deliveries.list.invalidate().catch((invalidateError) => {
         console.log("Deliveries invalidate failed", invalidateError);
       });
       setBusinessCreationMessage("מצוין!\nמשלוח חדש נוסף למערכת✅");
@@ -349,17 +342,16 @@ const useDeliveryContextValue = (): DeliveryContextValue => {
   const {
     mutateAsync: takeDeliveryMutateAsync,
     status: takeDeliveryStatus,
-  } = useMutation({
-    mutationFn: database.deliveries.take,
+  } = trpc.courier.takeDelivery.useMutation({
     onSuccess: (updatedDelivery) => {
       console.log("Delivery taken", updatedDelivery.id);
-      queryClient.setQueryData(["deliveries"], (current: Delivery[] | undefined) => {
+      utils.deliveries.list.setData(undefined, (current) => {
         if (!current) {
           return [updatedDelivery];
         }
         return current.map((delivery) => (delivery.id === updatedDelivery.id ? updatedDelivery : delivery));
       });
-      queryClient.invalidateQueries({ queryKey: ["deliveries"] }).catch((invalidateError) => {
+      utils.deliveries.list.invalidate().catch((invalidateError) => {
         console.log("Deliveries invalidate failed", invalidateError);
       });
       setCourierAssignmentMessage("המשלוח שויך אלייך בהצלחה.\nסע בזהירות!");
@@ -374,17 +366,16 @@ const useDeliveryContextValue = (): DeliveryContextValue => {
   const {
     mutateAsync: pickupDeliveryMutateAsync,
     status: pickupDeliveryStatus,
-  } = useMutation({
-    mutationFn: database.deliveries.pickup,
+  } = trpc.courier.pickupDelivery.useMutation({
     onSuccess: (updatedDelivery) => {
       console.log("Delivery picked up", updatedDelivery.id);
-      queryClient.setQueryData(["deliveries"], (current: Delivery[] | undefined) => {
+      utils.deliveries.list.setData(undefined, (current) => {
         if (!current) {
           return [updatedDelivery];
         }
         return current.map((delivery) => (delivery.id === updatedDelivery.id ? updatedDelivery : delivery));
       });
-      queryClient.invalidateQueries({ queryKey: ["deliveries"] }).catch((invalidateError) => {
+      utils.deliveries.list.invalidate().catch((invalidateError) => {
         console.log("Deliveries invalidate failed", invalidateError);
       });
       setCourierAssignmentMessage("המשלוח נאסף בהצלחה.\nסע בזהירות!");
@@ -399,17 +390,16 @@ const useDeliveryContextValue = (): DeliveryContextValue => {
   const {
     mutateAsync: completeDeliveryMutateAsync,
     status: completeDeliveryStatus,
-  } = useMutation({
-    mutationFn: database.deliveries.complete,
+  } = trpc.courier.completeDelivery.useMutation({
     onSuccess: (updatedDelivery) => {
       console.log("Delivery completed", updatedDelivery.id);
-      queryClient.setQueryData(["deliveries"], (current: Delivery[] | undefined) => {
+      utils.deliveries.list.setData(undefined, (current) => {
         if (!current) {
           return [updatedDelivery];
         }
         return current.map((delivery) => (delivery.id === updatedDelivery.id ? updatedDelivery : delivery));
       });
-      queryClient.invalidateQueries({ queryKey: ["deliveries"] }).catch((invalidateError) => {
+      utils.deliveries.list.invalidate().catch((invalidateError) => {
         console.log("Deliveries invalidate failed", invalidateError);
       });
       setCourierAssignmentMessage("המשלוח הושלם בהצלחה\nכל הכבוד!💯");
@@ -424,17 +414,16 @@ const useDeliveryContextValue = (): DeliveryContextValue => {
   const {
     mutateAsync: managerRegisterCourierMutateAsync,
     status: managerRegisterCourierMutationStatus,
-  } = useMutation({
-    mutationFn: database.users.registerCourier,
+  } = trpc.manager.registerCourier.useMutation({
     onSuccess: (createdCourier) => {
       console.log("Manager registered courier", createdCourier.id);
-      queryClient.setQueryData(["users"], (current: User[] | undefined) => {
+      utils.users.list.setData(undefined, (current) => {
         if (!current) {
           return [createdCourier];
         }
         return [createdCourier, ...current];
       });
-      queryClient.invalidateQueries({ queryKey: ["users"] }).catch((invalidateError) => {
+      utils.users.list.invalidate().catch((invalidateError) => {
         console.log("Users invalidate failed", invalidateError);
       });
       Alert.alert("הצלחה", "שליח חדש נרשם עם הסיסמה שבחרת");
@@ -449,17 +438,16 @@ const useDeliveryContextValue = (): DeliveryContextValue => {
   const {
     mutateAsync: managerRegisterBusinessMutateAsync,
     status: managerRegisterBusinessMutationStatus,
-  } = useMutation({
-    mutationFn: database.users.registerBusiness,
+  } = trpc.manager.registerBusiness.useMutation({
     onSuccess: (createdBusiness) => {
       console.log("Manager registered business", createdBusiness.id);
-      queryClient.setQueryData(["users"], (current: User[] | undefined) => {
+      utils.users.list.setData(undefined, (current) => {
         if (!current) {
           return [createdBusiness];
         }
         return [createdBusiness, ...current];
       });
-      queryClient.invalidateQueries({ queryKey: ["users"] }).catch((invalidateError) => {
+      utils.users.list.invalidate().catch((invalidateError) => {
         console.log("Users invalidate failed", invalidateError);
       });
       Alert.alert("הצלחה", "עסק חדש נרשם עם הסיסמה שבחרת");
@@ -474,17 +462,16 @@ const useDeliveryContextValue = (): DeliveryContextValue => {
   const {
     mutateAsync: managerRegisterManagerMutateAsync,
     status: managerRegisterManagerMutationStatus,
-  } = useMutation({
-    mutationFn: database.users.registerManager,
+  } = trpc.manager.registerManager.useMutation({
     onSuccess: (createdManager) => {
       console.log("Manager registered manager", createdManager.id);
-      queryClient.setQueryData(["users"], (current: User[] | undefined) => {
+      utils.users.list.setData(undefined, (current) => {
         if (!current) {
           return [createdManager];
         }
         return [createdManager, ...current];
       });
-      queryClient.invalidateQueries({ queryKey: ["users"] }).catch((invalidateError) => {
+      utils.users.list.invalidate().catch((invalidateError) => {
         console.log("Users invalidate failed", invalidateError);
       });
       Alert.alert("הצלחה", "מנהל חדש נוצר עם הסיסמה שבחרת");
@@ -499,17 +486,16 @@ const useDeliveryContextValue = (): DeliveryContextValue => {
   const {
     mutateAsync: managerUpdateUserMutateAsync,
     status: managerUpdateUserMutationStatus,
-  } = useMutation({
-    mutationFn: database.users.updateUser,
+  } = trpc.manager.updateUser.useMutation({
     onSuccess: (updatedUser) => {
       console.log("Manager updated user", updatedUser.id);
-      queryClient.setQueryData(["users"], (current: User[] | undefined) => {
+      utils.users.list.setData(undefined, (current) => {
         if (!current) {
           return [updatedUser];
         }
         return current.map((usr) => (usr.id === updatedUser.id ? updatedUser : usr));
       });
-      queryClient.invalidateQueries({ queryKey: ["users"] }).catch((invalidateError) => {
+      utils.users.list.invalidate().catch((invalidateError) => {
         console.log("Users invalidate failed", invalidateError);
       });
       Alert.alert("הצלחה", "פרטי המשתמש עודכנו בהצלחה");
@@ -524,17 +510,16 @@ const useDeliveryContextValue = (): DeliveryContextValue => {
   const {
     mutateAsync: managerUpdateDeliveryMutateAsync,
     status: managerUpdateDeliveryStatus,
-  } = useMutation({
-    mutationFn: database.deliveries.update,
+  } = trpc.manager.updateDelivery.useMutation({
     onSuccess: (updatedDelivery) => {
       console.log("Manager updated delivery", updatedDelivery.id);
-      queryClient.setQueryData(["deliveries"], (current: Delivery[] | undefined) => {
+      utils.deliveries.list.setData(undefined, (current) => {
         if (!current) {
           return [updatedDelivery];
         }
         return current.map((delivery) => (delivery.id === updatedDelivery.id ? updatedDelivery : delivery));
       });
-      queryClient.invalidateQueries({ queryKey: ["deliveries"] }).catch((invalidateError) => {
+      utils.deliveries.list.invalidate().catch((invalidateError) => {
         console.log("Deliveries invalidate failed", invalidateError);
       });
       Alert.alert("עודכן", "פרטי המשלוח עודכנו בהצלחה");
@@ -549,17 +534,16 @@ const useDeliveryContextValue = (): DeliveryContextValue => {
   const {
     mutateAsync: updateAvailabilityMutateAsync,
     status: updateAvailabilityStatus,
-  } = useMutation({
-    mutationFn: database.courier.updateAvailability,
+  } = trpc.courier.updateAvailability.useMutation({
     onSuccess: (updatedUser) => {
       console.log("Courier availability updated", updatedUser.id);
-      queryClient.setQueryData(["users"], (current: User[] | undefined) => {
+      utils.users.list.setData(undefined, (current) => {
         if (!current) {
           return [updatedUser];
         }
         return current.map((usr) => (usr.id === updatedUser.id ? updatedUser : usr));
       });
-      queryClient.invalidateQueries({ queryKey: ["users"] }).catch((invalidateError) => {
+      utils.users.list.invalidate().catch((invalidateError) => {
         console.log("Users invalidate failed", invalidateError);
       });
       applyUserState(updatedUser);
@@ -575,17 +559,16 @@ const useDeliveryContextValue = (): DeliveryContextValue => {
   const {
     mutateAsync: confirmDeliveryMutateAsync,
     status: confirmDeliveryStatus,
-  } = useMutation({
-    mutationFn: database.deliveries.confirm,
+  } = trpc.business.confirmDelivery.useMutation({
     onSuccess: (updatedDelivery) => {
       console.log("Business confirmed delivery", updatedDelivery.id);
-      queryClient.setQueryData(["deliveries"], (current: Delivery[] | undefined) => {
+      utils.deliveries.list.setData(undefined, (current) => {
         if (!current) {
           return [updatedDelivery];
         }
         return current.map((delivery) => (delivery.id === updatedDelivery.id ? updatedDelivery : delivery));
       });
-      queryClient.invalidateQueries({ queryKey: ["deliveries"] }).catch((invalidateError) => {
+      utils.deliveries.list.invalidate().catch((invalidateError) => {
         console.log("Deliveries invalidate failed", invalidateError);
       });
       setBusinessCreationMessage("ההזמנה אושרה!\nההכנה החלה✅");
@@ -600,17 +583,16 @@ const useDeliveryContextValue = (): DeliveryContextValue => {
   const {
     mutateAsync: markReadyMutateAsync,
     status: markReadyStatus,
-  } = useMutation({
-    mutationFn: database.deliveries.markReady,
+  } = trpc.business.markReady.useMutation({
     onSuccess: (updatedDelivery) => {
       console.log("Business marked delivery ready", updatedDelivery.id);
-      queryClient.setQueryData(["deliveries"], (current: Delivery[] | undefined) => {
+      utils.deliveries.list.setData(undefined, (current) => {
         if (!current) {
           return [updatedDelivery];
         }
         return current.map((delivery) => (delivery.id === updatedDelivery.id ? updatedDelivery : delivery));
       });
-      queryClient.invalidateQueries({ queryKey: ["deliveries"] }).catch((invalidateError) => {
+      utils.deliveries.list.invalidate().catch((invalidateError) => {
         console.log("Deliveries invalidate failed", invalidateError);
       });
       setBusinessCreationMessage("ההזמנה מוכנה!\nמחכה לאיסוף ע\"י השליח 🛵");
