@@ -92,7 +92,7 @@ function dbUserToUser(dbUser: DbUser): User {
 }
 
 function dbDeliveryToDelivery(dbDelivery: DbDelivery): Delivery {
-  return {
+  const delivery: Delivery = {
     id: dbDelivery.id,
     businessId: dbDelivery.business_id,
     courierId: dbDelivery.courier_id,
@@ -113,6 +113,8 @@ function dbDeliveryToDelivery(dbDelivery: DbDelivery): Delivery {
     payment: dbDelivery.payment ?? undefined,
     distanceKm: dbDelivery.distance_km ?? undefined,
   };
+
+  return delivery;
 }
 
 export async function getUsers(): Promise<User[]> {
@@ -154,23 +156,11 @@ export async function getDeliveries(): Promise<Delivery[]> {
     return [];
   }
 
-  console.log("[SUPABASE] Fetching deliveries with joins");
+  console.log("[SUPABASE] Fetching deliveries");
 
   const { data, error} = await supabase
     .from("deliveries")
-    .select(`
-      *,
-      business:business_id(
-        *,
-        courier_profiles(*),
-        business_profiles(*)
-      ),
-      courier:courier_id(
-        *,
-        courier_profiles(*),
-        business_profiles(*)
-      )
-    `)
+    .select("*")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -179,9 +169,6 @@ export async function getDeliveries(): Promise<Delivery[]> {
   }
 
   console.log("[SUPABASE] Fetched deliveries count:", data?.length || 0);
-  if (data && data.length > 0) {
-    console.log("[SUPABASE] Sample delivery data:", JSON.stringify(data[0], null, 2).substring(0, 500));
-  }
 
   return (data || []).map((row) => dbDeliveryToDelivery(row as unknown as DbDelivery));
 }
