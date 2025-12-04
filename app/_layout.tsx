@@ -12,7 +12,6 @@ import { CourierLocationProvider } from "../providers/CourierLocationProvider";
 import { GlobalDeliveryNotifications } from "../components/GlobalDeliveryNotifications";
 import { RealtimeDeliveryNotifications } from "../components/RealtimeDeliveryNotifications";
 import { BusinessCreationToast } from "../components/BusinessCreationToast";
-import { trpc, trpcClient } from "../lib/trpc";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -35,23 +34,21 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <trpc.Provider client={trpcClient} queryClient={queryClient}>
-      <QueryClientProvider client={queryClient}>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <AppErrorBoundary>
-            <DeliveryProvider>
-              <CourierLocationProvider>
-                <PushNotificationProvider>
-                  <RootLayoutNav />
-                  <GlobalDeliveryNotifications />
-                  <RealtimeDeliveryNotifications />
-                  <BusinessCreationToast />
-                </PushNotificationProvider>
-              </CourierLocationProvider>
-            </DeliveryProvider>
-          </AppErrorBoundary>
-        </GestureHandlerRootView>
-      </QueryClientProvider>
-    </trpc.Provider>
+    <QueryClientProvider client={queryClient}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <AppErrorBoundary>
+          <DeliveryProvider>
+            <CourierLocationProvider>
+              <PushNotificationProvider>
+                <RootLayoutNav />
+                <GlobalDeliveryNotifications />
+                <RealtimeDeliveryNotifications />
+                <BusinessCreationToast />
+              </PushNotificationProvider>
+            </CourierLocationProvider>
+          </DeliveryProvider>
+        </AppErrorBoundary>
+      </GestureHandlerRootView>
+    </QueryClientProvider>
   );
 }

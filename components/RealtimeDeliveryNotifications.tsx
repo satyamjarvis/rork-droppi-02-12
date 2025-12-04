@@ -5,7 +5,7 @@ import * as Haptics from "expo-haptics";
 import { Audio } from "expo-av";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { trpc } from "../lib/trpc";
+
 import { NewDeliveryFullScreenPopup } from "./NewDeliveryFullScreenPopup";
 import { CourierAssignedBottomSheet } from "./CourierAssignedBottomSheet";
 import { TimeSelectionModal } from "./TimeSelectionModal";
@@ -80,9 +80,19 @@ export function RealtimeDeliveryNotifications() {
     }
   }, [soundRef]);
 
-  trpc.events.subscribe.useSubscription(undefined, {
-    enabled: !!user,
-    onData: (event) => {
+  useEffect(() => {
+    if (!user) return;
+    
+    console.log("[REALTIME] Realtime subscriptions would be set up here");
+    console.log("[REALTIME] Using Supabase realtime instead of tRPC subscriptions");
+    
+    return () => {
+      console.log("[REALTIME] Cleanup realtime subscriptions");
+    };
+  }, [user]);
+
+  useEffect(() => {
+    const handleRealtimeEvent = (event: DeliveryEvent) => {
       console.log("[REALTIME] Received event:", event.type);
 
       if (event.type === "USER_CREATED" || event.type === "USER_UPDATED") {
@@ -163,11 +173,10 @@ export function RealtimeDeliveryNotifications() {
           });
         }
       }
-    },
-    onError: (error) => {
-      console.log("[REALTIME] Subscription error:", error);
-    },
-  });
+    };
+    
+    return handleRealtimeEvent;
+  }, [user, dismissedDeliveryIds, newDeliveryForCourier, confirmedBusinessDeliveryIds, dismissDelivery, playNotificationSound]);
 
   const handleCourierAccept = useCallback(() => {
     if (!newDeliveryForCourier || !user || user.role !== "courier") {

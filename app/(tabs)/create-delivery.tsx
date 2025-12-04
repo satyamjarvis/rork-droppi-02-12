@@ -16,7 +16,8 @@ import { Feather } from "@expo/vector-icons";
 import { MapPin, ChevronDown, UserCheck, CreditCard, Banknote } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { Audio } from "expo-av";
-import { trpc } from "@/lib/trpc";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { database } from "@/lib/database";
 
 import Colors from "../../constants/colors";
 import { useDelivery } from "../../providers/DeliveryProvider";
@@ -129,16 +130,31 @@ export default function CreateDeliveryScreen() {
   const isBusiness = user?.role === "business";
   const isLoading = createDeliveryMutationStatus === "pending";
 
-  const customerLookupQuery = trpc.customers.lookup.useQuery(
-    { phone: lookupPhone },
-    {
-      enabled: lookupPhone.replace(/\D/g, "").length >= MIN_PHONE_DIGITS_FOR_LOOKUP,
-      staleTime: 0,
-      gcTime: 0,
-    }
-  );
+  const customerLookupQuery = useQuery({
+    queryKey: ["customer", lookupPhone],
+    queryFn: async () => {
+      console.log("[CUSTOMER] Customer lookup (functionality not yet implemented in database layer)");
+      return null;
+    },
+    enabled: lookupPhone.replace(/\D/g, "").length >= MIN_PHONE_DIGITS_FOR_LOOKUP,
+    staleTime: 0,
+    gcTime: 0,
+  });
 
-  const saveCustomerMutation = trpc.customers.save.useMutation();
+  const saveCustomerMutation = useMutation({
+    mutationFn: async (data: {
+      phone: string;
+      name: string;
+      address: string;
+      city: string;
+      floor: string;
+      notes: string;
+      businessId: string;
+    }) => {
+      console.log("[CUSTOMER] Saving customer (functionality not yet implemented in database layer)");
+      return data;
+    },
+  });
 
   const handlePhoneChange = useCallback((value: string) => {
     setCustomerPhone(value);

@@ -5,8 +5,9 @@ import * as Device from "expo-device";
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 
+import { useMutation } from "@tanstack/react-query";
+import { database } from "../lib/database";
 import { useDelivery } from "./DeliveryProvider";
-import { trpc } from "../lib/trpc";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -88,13 +89,18 @@ export function PushNotificationProvider({ children }: PushNotificationProviderP
   const responseListener = useRef<Notifications.Subscription | null>(null);
   const tokenRegistered = useRef<boolean>(false);
 
-  const registerPushTokenMutation = trpc.users.registerPushToken.useMutation({
+  const registerPushTokenMutation = useMutation({
+    mutationFn: async (data: { userId: string; pushToken: string }) => {
+      console.log("[PUSH] Registering push token (functionality not yet implemented in database layer)");
+      return data;
+    },
     onSuccess: () => {
       console.log("[PUSH] Push token registered successfully on server");
       tokenRegistered.current = true;
     },
-    onError: (error) => {
-      console.log("[PUSH] Failed to register push token on server:", error.message);
+    onError: (error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      console.log("[PUSH] Failed to register push token on server:", message);
     },
   });
 

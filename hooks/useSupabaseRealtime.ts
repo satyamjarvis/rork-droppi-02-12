@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
-import { trpc } from "@/lib/trpc";
 
 type RealtimePayload = {
   eventType: "INSERT" | "UPDATE" | "DELETE";
@@ -9,18 +9,18 @@ type RealtimePayload = {
 };
 
 export function useSupabaseRealtime() {
-  const utils = trpc.useUtils();
+  const queryClient = useQueryClient();
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const invalidateQueries = useCallback(() => {
     console.log("[REALTIME] Invalidating queries due to database change");
-    utils.users.list.invalidate().catch((err) => {
+    queryClient.invalidateQueries({ queryKey: ["users"] }).catch((err: unknown) => {
       console.log("[REALTIME] Failed to invalidate users", err);
     });
-    utils.deliveries.list.invalidate().catch((err) => {
+    queryClient.invalidateQueries({ queryKey: ["deliveries"] }).catch((err: unknown) => {
       console.log("[REALTIME] Failed to invalidate deliveries", err);
     });
-  }, [utils]);
+  }, [queryClient]);
 
   const handleUsersChange = useCallback(
     (payload: RealtimePayload) => {
