@@ -1,0 +1,40 @@
+import { Delivery } from "../types/models";
+
+export const mockDeliveries: Delivery[] = [
+  {
+    id: "delivery-1",
+    businessId: "business-1",
+    courierId: null,
+    pickupAddress: "דיזנגוף 120, תל אביב",
+    dropoffAddress: "בן יהודה 45, תל אביב",
+    notes: "השאירו אצל השוער",
+    status: "waiting",
+    createdAt: new Date().toISOString(),
+    customerName: "יוסי כהן",
+    customerPhone: "050-1234567",
+  },
+  {
+    id: "delivery-2",
+    businessId: "business-1",
+    courierId: "courier-1",
+    pickupAddress: "רוטשילד 22, תל אביב",
+    dropoffAddress: "יהודה המכבי 15, תל אביב",
+    notes: "נא להתקשר לפני ההגעה",
+    status: "taken",
+    createdAt: new Date().toISOString(),
+    customerName: "דנה לוי",
+    customerPhone: "050-9876543",
+  },
+  {
+    id: "delivery-3",
+    businessId: "business-2",
+    courierId: null,
+    pickupAddress: "ויצמן 50, חולון",
+    dropoffAddress: "העצמאות 12, בת ים",
+    notes: "קוד כניסה 4580",
+    status: "waiting",
+    createdAt: new Date().toISOString(),
+    customerName: "מיכאל בן דוד",
+    customerPhone: "052-5551234",
+  },
+];

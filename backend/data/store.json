@@ -1,0 +1,79 @@
+{
+  "users": [
+    {
+      "id": "manager-root",
+      "name": "מנהל ראשי",
+      "phone": "+972500000000",
+      "password": "1234",
+      "role": "manager",
+      "email": "admin@droppi.co.il"
+    },
+    {
+      "id": "manager-operations",
+      "name": "תמיכה מנהלתית",
+      "phone": "+972500000009",
+      "password": "5678",
+      "role": "manager",
+      "email": "operations@droppi.co.il"
+    },
+    {
+      "id": "manager-central",
+      "name": "מנהלת סניף מרכז",
+      "phone": "+972500000123",
+      "password": "2468",
+      "role": "manager",
+      "email": "central@droppi.co.il"
+    },
+    {
+      "id": "courier-default",
+      "name": "דניאל כהן",
+      "phone": "+972500000200",
+      "password": "1234",
+      "role": "courier",
+      "email": "courier@droppi.co.il",
+      "courierProfile": {
+        "age": 28,
+        "email": "courier@droppi.co.il",
+        "vehicle": "אופנוע"
+      }
+    },
+    {
+      "id": "courier-noam",
+      "name": "נועם לוי",
+      "phone": "+972500000201",
+      "password": "1234",
+      "role": "courier",
+      "email": "noam@droppi.co.il",
+      "courierProfile": {
+        "age": 25,
+        "email": "noam@droppi.co.il",
+        "vehicle": "אופניים חשמליים"
+      }
+    },
+    {
+      "id": "business-default",
+      "name": "מסעדת הדובדבן",
+      "phone": "+972500000300",
+      "password": "1234",
+      "role": "business",
+      "email": "hadubdevan@restaurant.co.il",
+      "businessProfile": {
+        "address": "רחוב דיזנגוף 100, תל אביב (32.0853, 34.7818)",
+        "email": "hadubdevan@restaurant.co.il"
+      }
+    },
+    {
+      "id": "business-hummus",
+      "name": "חומוס אליהו",
+      "phone": "+972500000301",
+      "password": "1234",
+      "role": "business",
+      "email": "eliyahu@hummus.co.il",
+      "businessProfile": {
+        "address": "רחוב בן יהודה 45, תל אביב (32.0802, 34.7706)",
+        "email": "eliyahu@hummus.co.il"
+      }
+    }
+  ],
+  "deliveries": []
+}
