@@ -39,10 +39,24 @@ const createFetchWithTimeout = () => {
       console.log(`[TRPC] Response status:`, response.status);
       console.log(`[TRPC] Response headers:`, Object.fromEntries(response.headers.entries()));
       
+      const contentType = response.headers.get("content-type");
+      
       if (!response.ok) {
         const clonedResponse = response.clone();
         const text = await clonedResponse.text();
         console.log(`[TRPC] Error response body:`, text);
+        console.log(`[TRPC] Error response content-type:`, contentType);
+        
+        if (!contentType || !contentType.includes("application/json")) {
+          console.error(`[TRPC] Invalid content-type for error response:`, contentType);
+          console.error(`[TRPC] Raw response text:`, text);
+        }
+      }
+      
+      if (contentType && !contentType.includes("application/json")) {
+        const text = await response.clone().text();
+        console.error(`[TRPC] Non-JSON response received. Content-Type:`, contentType);
+        console.error(`[TRPC] Response text:`, text.substring(0, 200));
       }
       
       return response;

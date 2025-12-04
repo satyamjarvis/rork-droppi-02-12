@@ -6,13 +6,33 @@ import { createContext } from "./trpc/create-context";
 
 const app = new Hono();
 
-app.use("*", cors());
+app.use("*", cors({
+  origin: "*",
+  allowMethods: ["GET", "POST", "OPTIONS"],
+  allowHeaders: ["Content-Type"],
+}));
+
+app.onError((err, c) => {
+  console.error("[HONO] Error:", err.message);
+  return c.json(
+    {
+      error: {
+        message: err.message || "Internal server error",
+        code: "INTERNAL_SERVER_ERROR",
+      },
+    },
+    500
+  );
+});
 
 app.use(
   "/api/trpc/*",
   trpcServer({
     router: appRouter,
     createContext,
+    onError({ error, path }) {
+      console.error("[TRPC] Error on path", path, ":", error.message);
+    },
   })
 );
 
