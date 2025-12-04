@@ -578,8 +578,8 @@ export default function MyDeliveriesScreen() {
                 businessName={business?.name}
                 courierName={showCourierName ? courier?.name : undefined}
                 courierPhone={showCourierPhone ? courier?.phone : undefined}
-                customerName={showCustomerInfoForBusiness ? delivery.customerName : undefined}
-                customerPhone={showCustomerInfoForBusiness ? delivery.customerPhone : undefined}
+                customerName={showCustomerInfoForBusiness ? delivery.customerName : delivery.customerName}
+                customerPhone={showCustomerInfoForBusiness ? delivery.customerPhone : delivery.customerPhone}
                 showCustomerInfoForBusiness={showCustomerInfoForBusiness}
                 primaryActionLabel={
                   canComplete
@@ -606,6 +606,7 @@ export default function MyDeliveriesScreen() {
                 disabled={loadingAction}
                 showNavigationButtons={user?.role === "courier"}
                 showCustomerInfo={user?.role === "courier"}
+                showNotes={true}
                 testID={`delivery-${delivery.id}`}
               />
             );
