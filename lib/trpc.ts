@@ -1,6 +1,7 @@
 import { createTRPCReact } from "@trpc/react-query";
 import { httpLink, splitLink, unstable_httpSubscriptionLink } from "@trpc/client";
 import type { AppRouter } from "@/backend/trpc/app-router";
+import superjson from "superjson";
 
 export const trpc = createTRPCReact<AppRouter>();
 
@@ -24,7 +25,7 @@ const getBaseUrl = () => {
 const createFetchWithTimeout = () => {
   return async (url: RequestInfo | URL, options?: RequestInit): Promise<Response> => {
     const timeoutMs = 30000;
-    console.log(`[TRPC] Fetch request to:`, url, `(timeout: ${timeoutMs}ms)`);
+    console.log(`[TRPC] Fetch request (timeout: ${timeoutMs}ms)`);
     
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -35,30 +36,6 @@ const createFetchWithTimeout = () => {
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
-      
-      console.log(`[TRPC] Response status:`, response.status);
-      console.log(`[TRPC] Response headers:`, Object.fromEntries(response.headers.entries()));
-      
-      const contentType = response.headers.get("content-type");
-      
-      if (!response.ok) {
-        const clonedResponse = response.clone();
-        const text = await clonedResponse.text();
-        console.log(`[TRPC] Error response body:`, text);
-        console.log(`[TRPC] Error response content-type:`, contentType);
-        
-        if (!contentType || !contentType.includes("application/json")) {
-          console.error(`[TRPC] Invalid content-type for error response:`, contentType);
-          console.error(`[TRPC] Raw response text:`, text);
-        }
-      }
-      
-      if (contentType && !contentType.includes("application/json")) {
-        const text = await response.clone().text();
-        console.error(`[TRPC] Non-JSON response received. Content-Type:`, contentType);
-        console.error(`[TRPC] Response text:`, text.substring(0, 200));
-      }
-      
       return response;
     } catch (error) {
       clearTimeout(timeoutId);
@@ -79,9 +56,11 @@ export const trpcClient = trpc.createClient({
       condition: (op) => op.type === "subscription",
       true: unstable_httpSubscriptionLink({
         url: `${getBaseUrl()}/api/trpc`,
+        transformer: superjson,
       }),
       false: httpLink({
         url: `${getBaseUrl()}/api/trpc`,
+        transformer: superjson,
         fetch: createFetchWithTimeout(),
       }),
     }),
