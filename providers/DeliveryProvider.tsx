@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, createContext, useCo
 import { Alert, AppState, AppStateStatus, Platform } from "react-native";
 
 import { Delivery, DeliveryStatus, User, UserRole } from "../types/models";
-import { trpc } from "../lib/trpc";
+import { useQuery } from "@tanstack/react-query";
+import { getUsers, getDeliveries } from "../lib/supabaseQueries";
 import { persistentStorage } from "../utils/persistentStorage";
 import { useSupabaseRealtime } from "@/hooks/useSupabaseRealtime";
 
@@ -151,7 +152,7 @@ const useDeliveryContextValue = (): DeliveryContextValue => {
   const [businessCreationMessage, setBusinessCreationMessage] = useState<string | null>(null);
   const [courierAssignmentMessage, setCourierAssignmentMessage] = useState<string | null>(null);
   const [originalManagerUser, setOriginalManagerUser] = useState<User | null>(null);
-  const utils = trpc.useUtils();
+
   const userSnapshotRef = useRef<string>(createStableSignature(null));
   const hydrationCompletedRef = useRef<boolean>(false);
 
@@ -184,7 +185,9 @@ const useDeliveryContextValue = (): DeliveryContextValue => {
     data: usersData,
     isLoading: isUsersLoading,
     refetch: refetchUsers,
-  } = trpc.users.list.useQuery(undefined, {
+  } = useQuery({
+    queryKey: ["users"],
+    queryFn: getUsers,
     staleTime: 0,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
@@ -196,7 +199,9 @@ const useDeliveryContextValue = (): DeliveryContextValue => {
     data: deliveriesData,
     isLoading: isDeliveriesLoading,
     refetch: refetchDeliveries,
-  } = trpc.deliveries.list.useQuery(undefined, {
+  } = useQuery({
+    queryKey: ["deliveries"],
+    queryFn: getDeliveries,
     staleTime: 0,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,

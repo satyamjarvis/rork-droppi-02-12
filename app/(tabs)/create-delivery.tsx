@@ -16,7 +16,7 @@ import { Feather } from "@expo/vector-icons";
 import { MapPin, ChevronDown, UserCheck, CreditCard, Banknote } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import { Audio } from "expo-av";
-import { trpc } from "@/lib/trpc";
+import { supabase } from "@/lib/supabase";
 
 import Colors from "../../constants/colors";
 import { useDelivery } from "../../providers/DeliveryProvider";
@@ -129,20 +129,113 @@ export default function CreateDeliveryScreen() {
   const isBusiness = user?.role === "business";
   const isLoading = createDeliveryMutationStatus === "pending";
 
-  const customerLookupQuery = trpc.customers.lookup.useQuery(
-    { phone: lookupPhone },
-    {
-      enabled: lookupPhone.replace(/\D/g, "").length >= MIN_PHONE_DIGITS_FOR_LOOKUP,
-      staleTime: 0,
-      gcTime: 0,
-    }
-  );
+  const [customerLookupLoading, setCustomerLookupLoading] = useState<boolean>(false);
+  const [lookupCustomerData, setLookupCustomerData] = useState<Customer | null>(null);
 
-  const saveCustomerMutation = trpc.customers.save.useMutation();
+  const normalizePhoneNumber = useCallback((value: string): string => {
+    const trimmed = value.trim();
+    if (!trimmed) return "";
+    const hasLeadingPlus = trimmed.startsWith("+");
+    const digits = trimmed.replace(/\D/g, "");
+    if (!digits) return "";
+    return hasLeadingPlus ? `+${digits}` : digits;
+  }, []);
+
+  const createPhoneComparisonKey = useCallback((value: string): string => {
+    const trimmed = value.trim();
+    if (!trimmed) return "";
+    const digits = trimmed.replace(/\D/g, "");
+    if (!digits) return "";
+    if (digits.startsWith("972") && digits.length >= 11) {
+      const rest = digits.slice(3);
+      return rest.startsWith("0") ? rest.slice(1) : rest;
+    }
+    if (digits.startsWith("0") && digits.length >= 9) {
+      return digits.slice(1);
+    }
+    return digits;
+  }, []);
+
+  const lookupCustomer = useCallback(async (phone: string) => {
+    const normalizedPhone = normalizePhoneNumber(phone);
+    if (!normalizedPhone) {
+      console.log("[CUSTOMER] Invalid phone for customer lookup");
+      return null;
+    }
+
+    console.log("[CUSTOMER] Looking up customer by phone:", normalizedPhone);
+    setCustomerLookupLoading(true);
+
+    try {
+      const comparisonKey = createPhoneComparisonKey(normalizedPhone);
+
+      const { data, error } = await supabase
+        .from("customers")
+        .select("*");
+
+      if (error) {
+        console.log("[CUSTOMER] Error fetching customers:", error);
+        setCustomerLookupLoading(false);
+        return null;
+      }
+
+      type DbCustomer = {
+        id: string;
+        phone: string;
+        name: string;
+        address: string | null;
+        city: string | null;
+        floor: string | null;
+        notes: string | null;
+        business_id: string | null;
+        created_at: string;
+        updated_at: string;
+      };
+
+      const foundCustomer = (data || []).find((candidate) => {
+        const c = candidate as DbCustomer;
+        const candidateNormalized = normalizePhoneNumber(c.phone);
+        const candidateKey = createPhoneComparisonKey(candidateNormalized || c.phone);
+        return (
+          (!!candidateNormalized && candidateNormalized === normalizedPhone) ||
+          (!!candidateKey && !!comparisonKey && candidateKey === comparisonKey)
+        );
+      });
+
+      if (!foundCustomer) {
+        console.log("[CUSTOMER] Customer not found for phone:", normalizedPhone);
+        setCustomerLookupLoading(false);
+        return null;
+      }
+
+      const dbCustomer = foundCustomer as DbCustomer;
+      const customer: Customer = {
+        id: dbCustomer.id,
+        phone: dbCustomer.phone,
+        name: dbCustomer.name,
+        address: dbCustomer.address ?? undefined,
+        city: dbCustomer.city ?? undefined,
+        floor: dbCustomer.floor ?? undefined,
+        notes: dbCustomer.notes ?? undefined,
+        businessId: dbCustomer.business_id ?? undefined,
+        createdAt: dbCustomer.created_at,
+        updatedAt: dbCustomer.updated_at,
+      };
+
+      console.log("[CUSTOMER] Customer found:", customer.id, customer.name);
+      setCustomerLookupLoading(false);
+      return customer;
+    } catch (error) {
+      console.log("[CUSTOMER] Lookup error:", error);
+      setCustomerLookupLoading(false);
+      return null;
+    }
+  }, [normalizePhoneNumber, createPhoneComparisonKey]);
 
   const handlePhoneChange = useCallback((value: string) => {
     setCustomerPhone(value);
     setCustomerAutoFilled(false);
+    setLookupCustomerData(null);
     
     if (phoneLookupTimerRef.current) {
       clearTimeout(phoneLookupTimerRef.current);
@@ -150,14 +243,17 @@ export default function CreateDeliveryScreen() {
 
     const digits = value.replace(/\D/g, "");
     if (digits.length >= MIN_PHONE_DIGITS_FOR_LOOKUP) {
-      // Trigger lookup immediately for complete phone numbers
       setLookupPhone(value);
       console.log("Triggering customer lookup for:", value);
+      lookupCustomer(value).then((customer) => {
+        if (customer) {
+          setLookupCustomerData(customer);
+        }
+      });
     } else {
-      // Clear lookup phone if digits are less than required
       setLookupPhone("");
     }
-  }, []);
+  }, [lookupCustomer]);
 
   const applyCustomerData = useCallback((customer: Customer) => {
     console.log("Applying customer data:", customer.name);
@@ -195,12 +291,11 @@ export default function CreateDeliveryScreen() {
   }, []);
 
   useEffect(() => {
-    // Apply customer data whenever we get data from the query
-    if (customerLookupQuery.data && lookupPhone && !customerLookupQuery.isFetching) {
-      console.log("Customer data received from server:", customerLookupQuery.data);
-      applyCustomerData(customerLookupQuery.data);
+    if (lookupCustomerData && lookupPhone && !customerLookupLoading) {
+      console.log("Customer data received from server:", lookupCustomerData);
+      applyCustomerData(lookupCustomerData);
     }
-  }, [customerLookupQuery.data, customerLookupQuery.isFetching, lookupPhone, applyCustomerData]);
+  }, [lookupCustomerData, customerLookupLoading, lookupPhone, applyCustomerData]);
 
   useEffect(() => {
     return () => {
@@ -383,25 +478,86 @@ export default function CreateDeliveryScreen() {
       preparationTimeMinutes: preparationTime,
     });
 
-    saveCustomerMutation.mutate(
-      {
-        phone: customerPhone.trim(),
-        name: customerName.trim(),
-        address: dropoffStreet.trim(),
-        city: selectedCityLabel || "",
-        floor: floor.trim(),
-        notes: notes.trim(),
-        businessId: user.id,
-      },
-      {
-        onSuccess: () => {
-          console.log("Customer saved/updated successfully with latest details");
-        },
-        onError: (error) => {
-          console.log("Failed to save customer:", error);
-        },
+    const saveCustomer = async () => {
+      try {
+        const normalizedPhone = normalizePhoneNumber(customerPhone.trim());
+        if (!normalizedPhone || normalizedPhone.replace(/\D/g, "").length < 9) {
+          console.log("[CUSTOMER] Invalid phone, skipping save");
+          return;
+        }
+
+        if (!customerName.trim()) {
+          console.log("[CUSTOMER] Empty name, skipping save");
+          return;
+        }
+
+        console.log("[CUSTOMER] Saving customer:", normalizedPhone, customerName.trim());
+
+        const existingCustomer = await lookupCustomer(normalizedPhone);
+
+        type DbCustomer = {
+          id: string;
+          phone: string;
+          name: string;
+          address: string | null;
+          city: string | null;
+          floor: string | null;
+          notes: string | null;
+          business_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+
+        if (existingCustomer) {
+          const updateData = {
+            name: customerName.trim(),
+            address: dropoffStreet.trim() || null,
+            city: selectedCityLabel || null,
+            floor: floor.trim() || null,
+            notes: notes.trim() || null,
+            business_id: user.id || null,
+          };
+
+          console.log("[CUSTOMER] Updating customer with latest order details:", existingCustomer.id);
+
+          const { error: updateError } = await supabase
+            .from("customers")
+            .update(updateData)
+            .eq("id", existingCustomer.id);
+
+          if (updateError) {
+            console.log("[CUSTOMER] Error updating customer:", updateError);
+            return;
+          }
+
+          console.log("[CUSTOMER] Customer updated successfully");
+        } else {
+          const customerId = `customer-${Date.now()}-${Math.round(Math.random() * 100000)}`;
+
+          const { error: insertError } = await supabase.from("customers").insert({
+            id: customerId,
+            phone: normalizedPhone,
+            name: customerName.trim(),
+            address: dropoffStreet.trim() || null,
+            city: selectedCityLabel || null,
+            floor: floor.trim() || null,
+            notes: notes.trim() || null,
+            business_id: user.id || null,
+          });
+
+          if (insertError) {
+            console.log("[CUSTOMER] Error creating customer:", insertError);
+            return;
+          }
+
+          console.log("[CUSTOMER] Customer created successfully");
+        }
+      } catch (error) {
+        console.log("[CUSTOMER] Failed to save customer:", error);
       }
-    );
+    };
+
+    await saveCustomer();
 
     resetForm();
   };
@@ -513,12 +669,12 @@ export default function CreateDeliveryScreen() {
               keyboardType="phone-pad"
               testID="input-customer-phone"
             />
-            {customerLookupQuery.isFetching && (
+            {customerLookupLoading && (
               <View style={styles.phoneStatusIcon}>
                 <ActivityIndicator size="small" color={Colors.light.tint} />
               </View>
             )}
-            {customerAutoFilled && !customerLookupQuery.isFetching && (
+            {customerAutoFilled && !customerLookupLoading && (
               <View style={styles.phoneStatusIcon}>
                 <UserCheck size={20} color="#10b981" />
               </View>
